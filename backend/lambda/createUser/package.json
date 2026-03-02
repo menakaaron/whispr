@@ -1,7 +1,7 @@
 {
-  "name": "backend",
+  "name": "createuser",
   "version": "1.0.0",
-  "description": "WhisprAI turns everyday conversations into a personalized coach for language and culture, building confidence in authentic cross-cultural interactions.",
+  "description": "",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -11,6 +11,6 @@
   "license": "ISC",
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1000.0",
-    "uuid": "^8.3.2"
+    "uuid": "^13.0.0"
   }
 }
