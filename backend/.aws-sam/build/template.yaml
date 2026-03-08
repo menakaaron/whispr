@@ -1,0 +1,101 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Whispr backend Lambda functions
+Globals:
+  Function:
+    Runtime: nodejs18.x
+    Timeout: 10
+    Environment:
+      Variables:
+        REGION: us-east-1
+Resources:
+  CreateUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: whispr-createUser
+      CodeUri: CreateUserFunction
+      Handler: index.handler
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName: whispr-users
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /users
+            Method: POST
+    Metadata:
+      SamResourceId: CreateUserFunction
+  GetUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: whispr-getUser
+      CodeUri: GetUserFunction
+      Handler: index.handler
+      Policies:
+      - DynamoDBReadPolicy:
+          TableName: whispr-users
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /users/{userId}
+            Method: GET
+    Metadata:
+      SamResourceId: GetUserFunction
+  SaveConversationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: whispr-saveConversation
+      CodeUri: SaveConversationFunction
+      Handler: index.handler
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName: whispr-conversations
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /conversations
+            Method: POST
+    Metadata:
+      SamResourceId: SaveConversationFunction
+  SaveFeedbackFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: whispr-saveFeedback
+      CodeUri: SaveFeedbackFunction
+      Handler: index.handler
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName: whispr-feedback
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /feedback
+            Method: POST
+    Metadata:
+      SamResourceId: SaveFeedbackFunction
+  GetProgressFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: whispr-getProgress
+      CodeUri: GetProgressFunction
+      Handler: index.handler
+      Policies:
+      - DynamoDBReadPolicy:
+          TableName: whispr-progress
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /progress/{userId}
+            Method: GET
+    Metadata:
+      SamResourceId: GetProgressFunction
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value:
+      Fn::Sub: https://${ServerlessRestApi}.execute-api.us-east-1.amazonaws.com/Prod
