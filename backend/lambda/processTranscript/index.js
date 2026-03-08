@@ -92,7 +92,20 @@ Respond in this exact JSON format with no extra text:
     const bedrockBody = JSON.parse(Buffer.from(bedrockResponse.body).toString());
     const rawText = bedrockBody.content[0].text;
     const cleaned = rawText.replace(/```json|```/g, "").trim();
-    const analysis = JSON.parse(cleaned);
+
+    let analysis;
+    try {
+      analysis = JSON.parse(cleaned);
+    } catch (parseError) {
+      console.error("Failed to parse Bedrock response:", rawText);
+      // Save raw text as feedback so it's not lost
+      analysis = {
+        culturalCues: [],
+        socialNorms: [rawText],
+        fluencyNotes: [],
+        suggestions: []
+      };
+    }
 
     // Save feedback to DynamoDB
     await dynamo.send(new PutItemCommand({

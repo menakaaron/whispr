@@ -22,7 +22,7 @@ exports.handler = async (event) => {
     await transcribe.send(new StartTranscriptionJobCommand({
       TranscriptionJobName: jobName,
       LanguageCode: languageCode || "en-US",
-      MediaFormat: "mp4",
+      MediaFormat: body.mediaFormat || "mp4",
       Media: { MediaFileUri: s3Uri },
       OutputBucketName: "whispr-audio-uploads",
       OutputKey: `transcripts/${conversationId}.json`,
