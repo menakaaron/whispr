@@ -70,7 +70,7 @@ Respond in this exact JSON format with no extra text:
 
     return {
       statusCode: 200,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json","Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type,Authorization","Access-Control-Allow-Methods":"GET,POST,OPTIONS" },
       body: JSON.stringify({ conversationId, analysis }),
     };
   } catch (error) {
