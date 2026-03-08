@@ -1,0 +1,97 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Whispr backend Lambda functions
+
+Globals:
+  Function:
+    Runtime: nodejs18.x
+    Timeout: 10
+    Environment:
+      Variables:
+        REGION: us-east-1
+
+Resources:
+  CreateUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: whispr-createUser
+      CodeUri: lambda/createUser/
+      Handler: index.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: whispr-users
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /users
+            Method: POST
+
+  GetUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: whispr-getUser
+      CodeUri: lambda/getUser/
+      Handler: index.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: whispr-users
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /users/{userId}
+            Method: GET
+
+  SaveConversationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: whispr-saveConversation
+      CodeUri: lambda/saveConversation/
+      Handler: index.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: whispr-conversations
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /conversations
+            Method: POST
+
+  SaveFeedbackFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: whispr-saveFeedback
+      CodeUri: lambda/saveFeedback/
+      Handler: index.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: whispr-feedback
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /feedback
+            Method: POST
+
+  GetProgressFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: whispr-getProgress
+      CodeUri: lambda/getProgress/
+      Handler: index.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: whispr-progress
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /progress/{userId}
+            Method: GET
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.us-east-1.amazonaws.com/Prod"
