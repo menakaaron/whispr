@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { TrendChart } from "@/components/charts/TrendChart";
 import { UploadPanel } from "@/components/conversations/UploadPanel";
+import { getProgress } from "@/lib/api";
+import { useAuth } from "@/state/auth";
 import { useConversations } from "@/state/conversations";
 
 function formatShortDate(iso: string) {
@@ -20,7 +22,29 @@ function avg(nums: number[]) {
 }
 
 export function DashboardClient() {
+  const { user } = useAuth();
   const { conversations } = useConversations();
+  const [backendProgress, setBackendProgress] = useState<Record<string, unknown> | null>(null);
+  const [progressError, setProgressError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user?.sub) {
+      setBackendProgress(null);
+      setProgressError(null);
+      return;
+    }
+    let cancelled = false;
+    getProgress(user.sub)
+      .then((data) => {
+        if (!cancelled) setBackendProgress(data as Record<string, unknown>);
+      })
+      .catch((err) => {
+        if (!cancelled) setProgressError(err instanceof Error ? err.message : "Failed to load progress");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.sub]);
 
   const chartData = useMemo(() => {
     const recent = [...conversations].slice(0, 12).reverse();
@@ -49,6 +73,23 @@ export function DashboardClient() {
         <KpiCard title="Pronunciation" value={`${summary.pronunciation}`} sub="Avg (recent)" />
         <KpiCard title="Fluency + Tone" value={`${Math.round((summary.fluency + summary.tone) / 2)}`} sub="Avg (recent)" />
       </div>
+
+      {user && (
+        <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900/40">
+          <h2 className="text-base font-semibold tracking-tight">Backend progress</h2>
+          {progressError && (
+            <p className="mt-2 text-sm text-amber-700 dark:text-amber-200">{progressError}</p>
+          )}
+          {backendProgress && (
+            <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-200">
+              Connected. {Object.keys(backendProgress).length > 0 ? "Metrics from backend." : "No metrics yet."}
+            </p>
+          )}
+          {user && !backendProgress && !progressError && (
+            <p className="mt-2 text-sm text-zinc-500">Loading progress…</p>
+          )}
+        </section>
+      )}
 
       <UploadPanel />
 

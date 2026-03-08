@@ -9,10 +9,17 @@ Globals:
       Variables:
         REGION: us-east-1
 Resources:
+  WhisprApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Cors:
+        AllowOrigin: '''*'''
+        AllowHeaders: '''Content-Type,Authorization'''
+        AllowMethods: '''GET,POST,OPTIONS'''
   CreateUserFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: whispr-createUser
       CodeUri: CreateUserFunction
       Handler: index.handler
       Policies:
@@ -22,6 +29,8 @@ Resources:
         Api:
           Type: Api
           Properties:
+            RestApiId:
+              Ref: WhisprApi
             Path: /users
             Method: POST
     Metadata:
@@ -29,24 +38,31 @@ Resources:
   GetUserFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: whispr-getUser
       CodeUri: GetUserFunction
       Handler: index.handler
       Policies:
       - DynamoDBReadPolicy:
           TableName: whispr-users
       Events:
-        Api:
+        GetUser:
           Type: Api
           Properties:
+            RestApiId:
+              Ref: WhisprApi
             Path: /users/{userId}
             Method: GET
+        OptionsUser:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: WhisprApi
+            Path: /users/{userId}
+            Method: OPTIONS
     Metadata:
       SamResourceId: GetUserFunction
   SaveConversationFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: whispr-saveConversation
       CodeUri: SaveConversationFunction
       Handler: index.handler
       Policies:
@@ -56,6 +72,8 @@ Resources:
         Api:
           Type: Api
           Properties:
+            RestApiId:
+              Ref: WhisprApi
             Path: /conversations
             Method: POST
     Metadata:
@@ -63,7 +81,6 @@ Resources:
   SaveFeedbackFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: whispr-saveFeedback
       CodeUri: SaveFeedbackFunction
       Handler: index.handler
       Policies:
@@ -73,6 +90,8 @@ Resources:
         Api:
           Type: Api
           Properties:
+            RestApiId:
+              Ref: WhisprApi
             Path: /feedback
             Method: POST
     Metadata:
@@ -80,7 +99,6 @@ Resources:
   GetProgressFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: whispr-getProgress
       CodeUri: GetProgressFunction
       Handler: index.handler
       Policies:
@@ -90,12 +108,125 @@ Resources:
         Api:
           Type: Api
           Properties:
+            RestApiId:
+              Ref: WhisprApi
             Path: /progress/{userId}
             Method: GET
     Metadata:
       SamResourceId: GetProgressFunction
+  AnalyzeCultureFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: AnalyzeCultureFunction
+      Handler: index.handler
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName: whispr-conversations
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: WhisprApi
+            Path: /analyze
+            Method: POST
+    Metadata:
+      SamResourceId: AnalyzeCultureFunction
+  GetUploadUrlFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: GetUploadUrlFunction
+      Handler: index.handler
+      Policies:
+      - Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action: s3:PutObject
+          Resource:
+            Fn::Sub: arn:aws:s3:::whispr-audio-uploads/*
+      Events:
+        PostUploadUrl:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: WhisprApi
+            Path: /upload-url
+            Method: POST
+        OptionsUploadUrl:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: WhisprApi
+            Path: /upload-url
+            Method: OPTIONS
+    Metadata:
+      SamResourceId: GetUploadUrlFunction
+  TranscribeAudioFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: TranscribeAudioFunction
+      Handler: index.handler
+      Policies:
+      - Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action: transcribe:StartTranscriptionJob
+          Resource: '*'
+        - Effect: Allow
+          Action: s3:GetObject
+          Resource:
+            Fn::Sub: arn:aws:s3:::whispr-audio-uploads/*
+      Events:
+        PostTranscribe:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: WhisprApi
+            Path: /transcribe
+            Method: POST
+        OptionsTranscribe:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: WhisprApi
+            Path: /transcribe
+            Method: OPTIONS
+    Metadata:
+      SamResourceId: TranscribeAudioFunction
+  GetTranscribeResultFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: GetTranscribeResultFunction
+      Handler: index.handler
+      Policies:
+      - Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action: transcribe:GetTranscriptionJob
+          Resource: '*'
+        - Effect: Allow
+          Action: s3:GetObject
+          Resource:
+            Fn::Sub: arn:aws:s3:::whispr-audio-uploads/*
+      Events:
+        GetTranscribeResult:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: WhisprApi
+            Path: /transcribe/result/{conversationId}
+            Method: GET
+        OptionsTranscribeResult:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: WhisprApi
+            Path: /transcribe/result/{conversationId}
+            Method: OPTIONS
+    Metadata:
+      SamResourceId: GetTranscribeResultFunction
 Outputs:
   ApiUrl:
     Description: API Gateway endpoint URL
     Value:
-      Fn::Sub: https://${ServerlessRestApi}.execute-api.us-east-1.amazonaws.com/Prod
+      Fn::Sub: https://${WhisprApi}.execute-api.us-east-1.amazonaws.com/Prod

@@ -4,6 +4,7 @@ import React, { createContext, useCallback, useContext, useMemo, useState } from
 import { deleteAudioBlob, getAudioBlob, putAudioBlob } from "@/lib/idb";
 import { processConversation } from "@/lib/api";
 import { getOrCreateUserId } from "@/lib/user";
+import { useAuth } from "@/state/auth";
 
 export type ConversationAnalysis = {
   overallSummary: string;
@@ -89,6 +90,7 @@ function parseFeedback(
 }
 
 export function ConversationsProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>(() =>
     loadInitialConversations(),
   );
@@ -105,7 +107,7 @@ export function ConversationsProvider({ children }: { children: React.ReactNode 
   const addAudioFiles = useCallback(async (files: FileList | File[]) => {
     const arr = Array.from(files);
     const now = new Date();
-    const userId = await getOrCreateUserId();
+    const userId = user ? user.sub : await getOrCreateUserId();
 
     const created: Conversation[] = [];
 
@@ -154,7 +156,7 @@ export function ConversationsProvider({ children }: { children: React.ReactNode 
     }
 
     persist([...created, ...conversations].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)));
-  }, [conversations, persist]);
+  }, [conversations, persist, user]);
 
   const removeConversation = useCallback(
     async (id: string) => {

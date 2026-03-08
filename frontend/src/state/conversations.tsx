@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { deleteAudioBlob, getAudioBlob, putAudioBlob } from "@/lib/idb";
 
 export type ConversationAnalysis = {
@@ -26,11 +26,14 @@ export type Conversation = {
 
 type ConversationsContextValue = {
   conversations: Conversation[];
+  /** True after conversations have been loaded from localStorage (client). */
+  hydrated: boolean;
   addAudioFiles: (files: FileList | File[]) => Promise<void>;
   removeConversation: (id: string) => Promise<void>;
   renameConversation: (id: string, title: string) => void;
   getConversation: (id: string) => Conversation | undefined;
   loadAudioBlob: (id: string) => Promise<Blob | null>;
+  updateConversationAnalysis: (conversationId: string, analysis: ConversationAnalysis) => void;
 };
 
 const ConversationsContext = createContext<ConversationsContextValue | null>(null);
@@ -78,8 +81,7 @@ function makePlaceholderAnalysis(id: string, filename: string): ConversationAnal
   };
 }
 
-function loadInitialConversations(): Conversation[] {
-  if (typeof window === "undefined") return [];
+function loadStoredConversations(): Conversation[] {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
@@ -94,9 +96,13 @@ function loadInitialConversations(): Conversation[] {
 }
 
 export function ConversationsProvider({ children }: { children: React.ReactNode }) {
-  const [conversations, setConversations] = useState<Conversation[]>(() =>
-    loadInitialConversations(),
-  );
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setConversations(loadStoredConversations());
+    setHydrated(true);
+  }, []);
 
   const persist = useCallback((next: Conversation[]) => {
     setConversations(next);
@@ -159,16 +165,28 @@ export function ConversationsProvider({ children }: { children: React.ReactNode 
 
   const loadAudioBlob = useCallback(async (id: string) => await getAudioBlob(id), []);
 
+  const updateConversationAnalysis = useCallback(
+    (conversationId: string, analysis: ConversationAnalysis) => {
+      const next = conversations.map((c) =>
+        c.id === conversationId ? { ...c, analysis } : c
+      );
+      persist(next);
+    },
+    [conversations, persist],
+  );
+
   const value = useMemo<ConversationsContextValue>(
     () => ({
       conversations,
+      hydrated,
       addAudioFiles,
       removeConversation,
       renameConversation,
       getConversation,
       loadAudioBlob,
+      updateConversationAnalysis,
     }),
-    [addAudioFiles, conversations, getConversation, loadAudioBlob, removeConversation, renameConversation],
+    [addAudioFiles, conversations, getConversation, hydrated, loadAudioBlob, removeConversation, renameConversation, updateConversationAnalysis],
   );
 
   return <ConversationsContext.Provider value={value}>{children}</ConversationsContext.Provider>;

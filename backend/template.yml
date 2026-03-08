@@ -11,10 +11,18 @@ Globals:
         REGION: us-east-1
 
 Resources:
+  WhisprApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Cors:
+        AllowOrigin: "'*'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowMethods: "'GET,POST,OPTIONS'"
+
   CreateUserFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: whispr-createUser
       CodeUri: lambda/createUser/
       Handler: index.handler
       Policies:
@@ -24,29 +32,35 @@ Resources:
         Api:
           Type: Api
           Properties:
+            RestApiId: !Ref WhisprApi
             Path: /users
             Method: POST
 
   GetUserFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: whispr-getUser
       CodeUri: lambda/getUser/
       Handler: index.handler
       Policies:
         - DynamoDBReadPolicy:
             TableName: whispr-users
       Events:
-        Api:
+        GetUser:
           Type: Api
           Properties:
+            RestApiId: !Ref WhisprApi
             Path: /users/{userId}
             Method: GET
+        OptionsUser:
+          Type: Api
+          Properties:
+            RestApiId: !Ref WhisprApi
+            Path: /users/{userId}
+            Method: OPTIONS
 
   SaveConversationFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: whispr-saveConversation
       CodeUri: lambda/saveConversation/
       Handler: index.handler
       Policies:
@@ -56,13 +70,13 @@ Resources:
         Api:
           Type: Api
           Properties:
+            RestApiId: !Ref WhisprApi
             Path: /conversations
             Method: POST
 
   SaveFeedbackFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: whispr-saveFeedback
       CodeUri: lambda/saveFeedback/
       Handler: index.handler
       Policies:
@@ -72,13 +86,13 @@ Resources:
         Api:
           Type: Api
           Properties:
+            RestApiId: !Ref WhisprApi
             Path: /feedback
             Method: POST
 
   GetProgressFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: whispr-getProgress
       CodeUri: lambda/getProgress/
       Handler: index.handler
       Policies:
@@ -88,10 +102,108 @@ Resources:
         Api:
           Type: Api
           Properties:
+            RestApiId: !Ref WhisprApi
             Path: /progress/{userId}
             Method: GET
+
+  AnalyzeCultureFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/analyzeCulture/
+      Handler: index.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: whispr-conversations
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref WhisprApi
+            Path: /analyze
+            Method: POST
+
+  GetUploadUrlFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/getUploadUrl/
+      Handler: index.handler
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action: s3:PutObject
+              Resource: !Sub "arn:aws:s3:::whispr-audio-uploads/*"
+      Events:
+        PostUploadUrl:
+          Type: Api
+          Properties:
+            RestApiId: !Ref WhisprApi
+            Path: /upload-url
+            Method: POST
+        OptionsUploadUrl:
+          Type: Api
+          Properties:
+            RestApiId: !Ref WhisprApi
+            Path: /upload-url
+            Method: OPTIONS
+
+  TranscribeAudioFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/transcribeAudio/
+      Handler: index.handler
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action: transcribe:StartTranscriptionJob
+              Resource: "*"
+            - Effect: Allow
+              Action: s3:GetObject
+              Resource: !Sub "arn:aws:s3:::whispr-audio-uploads/*"
+      Events:
+        PostTranscribe:
+          Type: Api
+          Properties:
+            RestApiId: !Ref WhisprApi
+            Path: /transcribe
+            Method: POST
+        OptionsTranscribe:
+          Type: Api
+          Properties:
+            RestApiId: !Ref WhisprApi
+            Path: /transcribe
+            Method: OPTIONS
+
+  GetTranscribeResultFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/getTranscribeResult/
+      Handler: index.handler
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action: transcribe:GetTranscriptionJob
+              Resource: "*"
+            - Effect: Allow
+              Action: s3:GetObject
+              Resource: !Sub "arn:aws:s3:::whispr-audio-uploads/*"
+      Events:
+        GetTranscribeResult:
+          Type: Api
+          Properties:
+            RestApiId: !Ref WhisprApi
+            Path: /transcribe/result/{conversationId}
+            Method: GET
+        OptionsTranscribeResult:
+          Type: Api
+          Properties:
+            RestApiId: !Ref WhisprApi
+            Path: /transcribe/result/{conversationId}
+            Method: OPTIONS
 
 Outputs:
   ApiUrl:
     Description: API Gateway endpoint URL
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.us-east-1.amazonaws.com/Prod"
+    Value: !Sub "https://${WhisprApi}.execute-api.us-east-1.amazonaws.com/Prod"

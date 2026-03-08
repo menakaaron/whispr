@@ -1,0 +1,10 @@
+{"sessionId":"6483fe","location":"cognito.ts:signIn:entry","message":"signIn called","data":{},"timestamp":1773009596620,"hypothesisId":"H1"}
+{"sessionId":"6483fe","location":"cognito.ts:signIn:onFailure","message":"authenticateUser failed","data":{"name":"InvalidParameterException","message":"USER_SRP_AUTH is not enabled for the client."},"timestamp":1773009596999,"hypothesisId":"H1"}
+{"sessionId":"6483fe","location":"cognito.ts:signUp:entry","message":"signUp called","data":{"hasEmail":true},"timestamp":1773009619375,"hypothesisId":"H1"}
+{"sessionId":"6483fe","location":"cognito.ts:signUp:reject","message":"signUp err","data":{"name":"UsernameExistsException","msg":"User already exists"},"timestamp":1773009620072,"hypothesisId":"H3"}
+{"sessionId":"6483fe","location":"cognito.ts:signIn:entry","message":"signIn called","data":{},"timestamp":1773009631922,"hypothesisId":"H1"}
+{"sessionId":"6483fe","location":"cognito.ts:signIn:onFailure","message":"authenticateUser failed","data":{"name":"InvalidParameterException","message":"USER_SRP_AUTH is not enabled for the client."},"timestamp":1773009632273,"hypothesisId":"H1"}
+{"sessionId":"6483fe","location":"cognito.ts:signIn:entry","message":"signIn called","data":{},"timestamp":1773010237223,"hypothesisId":"H1"}
+{"sessionId":"6483fe","location":"cognito.ts:signIn:onFailure","message":"authenticateUser failed","data":{"name":"InvalidParameterException","message":"USER_SRP_AUTH is not enabled for the client."},"timestamp":1773010237583,"hypothesisId":"H1"}
+{"sessionId":"6483fe","location":"cognito.ts:signIn:entry","message":"signIn called","data":{},"timestamp":1773010447726,"hypothesisId":"H1"}
+{"sessionId":"6483fe","location":"cognito.ts:signIn:entry","message":"signIn called","data":{},"timestamp":1773010507459,"hypothesisId":"H1"}

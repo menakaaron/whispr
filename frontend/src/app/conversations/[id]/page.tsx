@@ -3,8 +3,9 @@ import { ConversationDetailClient } from "@/components/conversations/Conversatio
 export default async function ConversationDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  return <ConversationDetailClient id={params.id} />;
+  const { id } = await params;
+  return <ConversationDetailClient id={id} />;
 }
 

@@ -3,7 +3,17 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useMemo, useState } from "react";
+import {
+  saveConversation,
+  analyzeCulture,
+  getUser,
+  getUploadUrl,
+  startTranscribe,
+  getTranscribeResult,
+} from "@/lib/api";
+import { useAuth } from "@/state/auth";
 import { useConversations } from "@/state/conversations";
+import type { ConversationAnalysis } from "@/state/conversations";
 
 function formatLong(iso: string) {
   try {
@@ -20,14 +30,42 @@ function formatLong(iso: string) {
   }
 }
 
+function mapBackendAnalysisToUI(
+  transcript: string,
+  analysis: Record<string, unknown>
+): ConversationAnalysis {
+  const norms = (analysis.socialNorms as string[] | undefined) ?? [];
+  const cuesRaw = (analysis.culturalCues as Array<{ phrase?: string; actualMeaning?: string; context?: string }> | undefined) ?? [];
+  const cues = cuesRaw.map(
+    (c) => [c.phrase, c.actualMeaning, c.context].filter(Boolean).join(": ")
+  );
+  const culturalSummary = [...norms, ...cues].join(". ") || "No cultural notes yet.";
+  const suggestions = (analysis.suggestions as string[] | undefined) ?? [];
+  return {
+    overallSummary: transcript || "AI analysis complete.",
+    pronunciationScore: 70,
+    fluencyScore: 70,
+    toneScore: 70,
+    culturalContextSummary: culturalSummary,
+    coachingCues: suggestions.length > 0 ? suggestions : ["Review the cultural context above."],
+  };
+}
+
 export function ConversationDetailClient({ id }: { id: string }) {
   const router = useRouter();
-  const { getConversation, loadAudioBlob, removeConversation, renameConversation } = useConversations();
+  const { user } = useAuth();
+  const { getConversation, loadAudioBlob, removeConversation, renameConversation, updateConversationAnalysis, hydrated } =
+    useConversations();
   const convo = getConversation(id);
 
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [titleDraft, setTitleDraft] = useState(convo?.title ?? "");
   const [busyDelete, setBusyDelete] = useState(false);
+  const [transcriptDraft, setTranscriptDraft] = useState("");
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [transcribeStatus, setTranscribeStatus] = useState<string | null>(null);
+  const [transcribing, setTranscribing] = useState(false);
 
   useEffect(() => {
     setTitleDraft(convo?.title ?? "");
@@ -63,6 +101,16 @@ export function ConversationDetailClient({ id }: { id: string }) {
     ];
   }, [convo]);
 
+  const isPlaceholderAnalysis = convo?.analysis.overallSummary?.includes("Placeholder analysis") ?? true;
+
+  if (!hydrated) {
+    return (
+      <div className="space-y-4">
+        <div className="text-sm text-zinc-600 dark:text-zinc-300">Loading conversation…</div>
+      </div>
+    );
+  }
+
   if (!convo) {
     return (
       <div className="space-y-4">
@@ -92,7 +140,9 @@ export function ConversationDetailClient({ id }: { id: string }) {
           </div>
           <h1 className="mt-2 truncate text-2xl font-semibold tracking-tight">{convo.title}</h1>
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
-            Placeholder post-conversation analysis (wire up Bedrock later).
+            {isPlaceholderAnalysis
+              ? "Paste a transcript below and click Analyze with AI to replace placeholder with real feedback."
+              : "AI analysis from your transcript."}
           </p>
         </div>
 
@@ -113,6 +163,166 @@ export function ConversationDetailClient({ id }: { id: string }) {
           {busyDelete ? "Deleting…" : "Delete"}
         </button>
       </div>
+
+      {isPlaceholderAnalysis && (
+        <section className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
+          <h2 className="text-base font-semibold tracking-tight text-amber-900 dark:text-amber-100">
+            This is placeholder analysis
+          </h2>
+          <p className="mt-2 text-sm text-amber-800 dark:text-amber-200">
+            The scores and summary below are not from your recording yet. Sign in and click <strong>Transcribe from recording &amp; analyze</strong> to run speech-to-text and AI analysis automatically, or paste a transcript and click <strong>Analyze with AI</strong>.
+          </p>
+          {!user && (
+            <Link
+              href="/login"
+              className="mt-3 inline-flex items-center justify-center rounded-full bg-amber-700 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-800 dark:bg-amber-600 dark:hover:bg-amber-700"
+            >
+              Sign in to run AI analysis
+            </Link>
+          )}
+        </section>
+      )}
+
+      {user && (
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900/40">
+          <h2 className="text-base font-semibold tracking-tight">Get AI analysis</h2>
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+            Transcribe your recording automatically, then run AI analysis. Or paste a transcript below.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              disabled={transcribing || analyzing || !audioUrl}
+              onClick={async () => {
+                setAnalyzeError(null);
+                setTranscribeStatus("Loading audio…");
+                setTranscribing(true);
+                try {
+                  const blob = await loadAudioBlob(convo.id);
+                  if (!blob) throw new Error("Could not load recording");
+                  setTranscribeStatus("Getting upload URL…");
+                  const { uploadUrl, s3Key } = await getUploadUrl({
+                    userId: user!.sub,
+                    contentType: blob.type || "audio/mpeg",
+                  });
+                  setTranscribeStatus("Uploading…");
+                  const putRes = await fetch(uploadUrl, {
+                    method: "PUT",
+                    body: blob,
+                    headers: { "Content-Type": blob.type || "audio/mpeg" },
+                  });
+                  if (!putRes.ok) throw new Error("Upload failed");
+                  setTranscribeStatus("Creating conversation…");
+                  const { conversationId, createdAt } = await saveConversation({
+                    userId: user!.sub,
+                    transcriptRaw: "pending",
+                    durationSeconds: 0,
+                    context: "general",
+                  });
+                  const ext = convo.audio.originalFilename.split(".").pop()?.toLowerCase() || "mp3";
+                  const mediaFormat = ext === "m4a" || ext === "mp4" ? "mp4" : ext === "wav" ? "wav" : "mp3";
+                  setTranscribeStatus("Starting transcription…");
+                  await startTranscribe({
+                    s3Key,
+                    userId: user!.sub,
+                    conversationId,
+                    createdAt,
+                    mediaFormat,
+                  });
+                  setTranscribeStatus("Transcribing (this may take a minute)…");
+                  let transcript = "";
+                  for (let i = 0; i < 60; i++) {
+                    await new Promise((r) => setTimeout(r, 3000));
+                    const result = await getTranscribeResult(conversationId);
+                    if (result.status === "COMPLETED") {
+                      transcript = result.transcript;
+                      break;
+                    }
+                    if (result.status === "FAILED") throw new Error(result.error || "Transcription failed");
+                    if (result.status === "NOT_FOUND") throw new Error("Transcription job not found");
+                  }
+                  if (!transcript) throw new Error("Transcription timed out");
+                  setTranscribeStatus("Running AI analysis…");
+                  const profile = (await getUser(user!.sub).catch(() => ({}))) as {
+                    nativeLanguage?: string;
+                    targetLanguage?: string;
+                  };
+                  const nativeLanguage = profile.nativeLanguage ?? "English";
+                  const targetLanguage = profile.targetLanguage ?? "Spanish";
+                  const { analysis } = await analyzeCulture({
+                    conversationId,
+                    transcript,
+                    nativeLanguage,
+                    targetLanguage,
+                    userId: user!.sub,
+                    createdAt,
+                  });
+                  const mapped = mapBackendAnalysisToUI(transcript, analysis as Record<string, unknown>);
+                  updateConversationAnalysis(convo.id, mapped);
+                } catch (err) {
+                  setAnalyzeError(err instanceof Error ? err.message : "Transcribe or analysis failed");
+                } finally {
+                  setTranscribing(false);
+                  setTranscribeStatus(null);
+                }
+              }}
+              className="inline-flex items-center justify-center rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+            >
+              {transcribing ? transcribeStatus ?? "Working…" : "Transcribe from recording & analyze"}
+            </button>
+          </div>
+          <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">Or paste a transcript:</p>
+          <textarea
+            value={transcriptDraft}
+            onChange={(e) => {
+              setTranscriptDraft(e.target.value);
+              setAnalyzeError(null);
+            }}
+            placeholder="Paste transcript here…"
+            rows={4}
+            className="mt-3 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none ring-0 focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950/20 dark:focus:border-zinc-600"
+          />
+          {analyzeError && (
+            <p className="mt-2 text-sm text-amber-700 dark:text-amber-200">{analyzeError}</p>
+          )}
+          <button
+            type="button"
+            disabled={analyzing || transcribing || !transcriptDraft.trim()}
+            onClick={async () => {
+              setAnalyzeError(null);
+              setAnalyzing(true);
+              try {
+                const profile = await getUser(user!.sub).catch(() => ({})) as { nativeLanguage?: string; targetLanguage?: string };
+                const nativeLanguage = profile.nativeLanguage ?? "English";
+                const targetLanguage = profile.targetLanguage ?? "Spanish";
+                const { conversationId, createdAt } = await saveConversation({
+                  userId: user!.sub,
+                  transcriptRaw: transcriptDraft.trim(),
+                  durationSeconds: 0,
+                  context: "general",
+                });
+                const { analysis } = await analyzeCulture({
+                  conversationId,
+                  transcript: transcriptDraft.trim(),
+                  nativeLanguage,
+                  targetLanguage,
+                  userId: user!.sub,
+                  createdAt,
+                });
+                const mapped = mapBackendAnalysisToUI(transcriptDraft.trim(), analysis as Record<string, unknown>);
+                updateConversationAnalysis(convo.id, mapped);
+              } catch (err) {
+                setAnalyzeError(err instanceof Error ? err.message : "Analysis failed");
+              } finally {
+                setAnalyzing(false);
+              }
+            }}
+            className="mt-3 inline-flex items-center justify-center rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+          >
+            {analyzing ? "Analyzing…" : "Analyze with AI"}
+          </button>
+        </section>
+      )}
 
       <section className="grid gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900/40 md:col-span-2">
@@ -173,6 +383,11 @@ export function ConversationDetailClient({ id }: { id: string }) {
 
       <section className="grid gap-4 md:grid-cols-2">
         <DetailCard
+          title="Cultural context"
+          body={convo.analysis.culturalContextSummary}
+          bullets={["Functional vs literal phrases", "Unspoken social norms", "Suggested alternatives for your context"]}
+        />
+        <DetailCard
           title="Pronunciation"
           body="This will later highlight phoneme-level issues, stress patterns, and example replays."
           bullets={["Common mispronounced sounds", "Stress + rhythm patterns", "Targeted drills and audio examples"]}
@@ -186,11 +401,6 @@ export function ConversationDetailClient({ id }: { id: string }) {
           title="Tone"
           body="This will later evaluate intonation, politeness strategy, and confidence signals."
           bullets={["Intonation patterns", "Directness vs softness", "Confidence markers (volume/hesitation)"]}
-        />
-        <DetailCard
-          title="Cultural context"
-          body={convo.analysis.culturalContextSummary}
-          bullets={["Functional vs literal phrases", "Unspoken social norms", "Suggested alternatives for your context"]}
         />
       </section>
 

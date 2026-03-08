@@ -1,5 +1,8 @@
-const WHISPR_API = process.env.NEXT_PUBLIC_API_URL!;
-const WHISPRAI_API = process.env.NEXT_PUBLIC_WHISPRAI_API_URL!;
+"use client";
+
+import { api } from "./apiClient";
+
+// All backend calls use the authenticated apiClient (JWT attached when user is logged in).
 
 // ── Users ──────────────────────────────────────────────────────────────────
 
@@ -10,43 +13,38 @@ export async function createUser(data: {
   proficiencyLevel: string;
   learningGoals: string[];
 }): Promise<{ userId: string }> {
-  const res = await fetch(`${WHISPR_API}/users`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error("Failed to create user");
-  return res.json();
+  return api.post<{ userId: string }>("/users", data);
 }
 
 export async function getUser(userId: string) {
-  const res = await fetch(`${WHISPR_API}/users/${userId}`);
-  if (!res.ok) throw new Error("Failed to get user");
-  return res.json();
+  return api.get(`/users/${userId}`);
 }
 
 // ── Conversations ──────────────────────────────────────────────────────────
 
-export async function processConversation(data: {
+export async function saveConversation(data: {
   userId: string;
-  audioKey: string;
-}): Promise<{
-  conversationId: string;
-  status: string;
-  transcript: string;
-  feedback: {
-    pronunciation: string;
-    fluency: string;
-    culturalContext: string;
-  };
-}> {
-  const res = await fetch(`${WHISPRAI_API}/conversations`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+  transcriptRaw: string;
+  durationSeconds?: number;
+  context?: string;
+}): Promise<{ conversationId: string; createdAt: string }> {
+  return api.post("/conversations", {
+    userId: data.userId,
+    transcriptRaw: data.transcriptRaw,
+    durationSeconds: data.durationSeconds ?? 0,
+    context: data.context ?? "general",
   });
-  if (!res.ok) throw new Error("Failed to process conversation");
-  return res.json();
+}
+
+export async function analyzeCulture(data: {
+  conversationId: string;
+  transcript: string;
+  nativeLanguage: string;
+  targetLanguage: string;
+  userId: string;
+  createdAt: string;
+}): Promise<{ conversationId: string; analysis: Record<string, unknown> }> {
+  return api.post("/analyze", data);
 }
 
 // ── Feedback ───────────────────────────────────────────────────────────────
@@ -59,19 +57,46 @@ export async function saveFeedback(data: {
   severity?: string;
   generatedBy?: string;
 }) {
-  const res = await fetch(`${WHISPR_API}/feedback`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error("Failed to save feedback");
-  return res.json();
+  return api.post("/feedback", data);
 }
 
 // ── Progress ───────────────────────────────────────────────────────────────
 
 export async function getProgress(userId: string) {
-  const res = await fetch(`${WHISPR_API}/progress/${userId}`);
-  if (!res.ok) throw new Error("Failed to get progress");
-  return res.json();
+  return api.get(`/progress/${userId}`);
+}
+
+// ── Upload & transcribe (speech-to-text) ────────────────────────────────────
+
+export async function getUploadUrl(data: {
+  userId: string;
+  contentType: string;
+}): Promise<{ uploadUrl: string; s3Key: string; fileId: string }> {
+  return api.post("/upload-url", data);
+}
+
+export async function startTranscribe(data: {
+  s3Key: string;
+  userId: string;
+  conversationId: string;
+  createdAt: string;
+  languageCode?: string;
+  mediaFormat?: string;
+}): Promise<{ jobName: string; conversationId: string }> {
+  return api.post("/transcribe", data);
+}
+
+export async function getTranscribeResult(conversationId: string): Promise<
+  | { status: "COMPLETED"; transcript: string }
+  | { status: "IN_PROGRESS" }
+  | { status: "FAILED"; error: string }
+  | { status: "NOT_FOUND"; error: string }
+> {
+  return api.get(`/transcribe/result/${conversationId}`);
+}
+
+// ── Practice (Bedrock simulation) ──────────────────────────────────────────
+
+export async function practiceSimulation(data: Record<string, unknown>) {
+  return api.post("/practice", data);
 }
