@@ -99,11 +99,10 @@ export function UploadPanel() {
         accept="audio/*"
         multiple
         className="hidden"
-onChange={async (e) => {
-  const input = e.currentTarget;
-  if (e.target.files?.length) await onFiles(e.target.files);
-  if (input) input.value = "";
-}}
+        onChange={async (e) => {
+          if (e.target.files?.length) await onFiles(e.target.files);
+          e.currentTarget.value = "";
+        }}
       />
     </section>
   );
