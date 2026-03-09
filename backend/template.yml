@@ -42,6 +42,13 @@ Resources:
             Path: /users
             Method: POST
 
+  AutoConfirmUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/autoConfirmUser/
+      Handler: index.handler
+      Description: Auto-confirm users for development
+
   GetUserFunction:
     Type: AWS::Serverless::Function
     Properties:

@@ -430,60 +430,77 @@ export function ConversationDetailClient({ id }: { id: string }) {
         <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-200">{convo.analysis.overallSummary}</p>
       </section>
 
-      <div className="grid gap-4 md:grid-cols-3 md:items-start">
-        <div className="md:col-span-2 space-y-4">
+      <section className="grid gap-4 md:grid-cols-3">
+        <div className="md:col-span-2 md:row-span-5">
           <DetailCard
             title="Cultural context"
             body={convo.analysis.culturalContextSummary}
             bullets={["Functional vs literal phrases", "Unspoken social norms", "Suggested alternatives for your context"]}
           />
-          
-          <div className="grid gap-2 md:grid-cols-3">
-            <DetailCard
-              title="Pronunciation"
-              body="This will later highlight phoneme-level issues, stress patterns, and example replays."
-              bullets={["Common mispronounced sounds", "Stress + rhythm patterns", "Targeted drills and audio examples"]}
-            />
-            
-            <DetailCard
-              title="Fluency"
-              body="This will later measure pace, pauses, filler words, and turn-taking patterns."
-              bullets={["Pace + pausing", "Filler word frequency", "Turn-taking smoothness"]}
-            />
-            
-            <DetailCard
-              title="Tone"
-              body="This will later evaluate intonation, politeness strategy, and confidence signals."
-              bullets={["Intonation patterns", "Directness vs softness", "Confidence markers (volume/hesitation)"]}
-            />
-          </div>
         </div>
         
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900/40">
-            <h2 className="text-base font-semibold tracking-tight">Coaching cues</h2>
-            <ul className="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-200">
-              {convo.analysis.coachingCues.map((cue) => (
-                <li key={cue} className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950/30">
-                  {cue}
-                </li>
-              ))}
-            </ul>
-          </div>
-          
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900/40">
-            <h2 className="text-base font-semibold tracking-tight">Real-time cues</h2>
-            <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-200">
-              In live mode, WhisprAI provides subtle cues for pronunciation and pacing.
-            </p>
-            <div className="mt-4 grid gap-3 grid-cols-1">
-              <Cue label="Pacing" value="Hold 0.5s" />
-              <Cue label="Pronunciation" value='Try "th"' />
-              <Cue label="Tone" value="Softer close" />
-            </div>
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900/40">
+          <h2 className="text-base font-semibold tracking-tight">Real-time cues</h2>
+          <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-200">
+            In live mode, WhisprAI provides subtle cues for pronunciation and pacing.
+          </p>
+          <div className="mt-4 grid gap-3 grid-cols-1">
+            <Cue label="Pacing" value="Hold 0.5s" />
+            <Cue label="Pronunciation" value="Try "th"" />
+            <Cue label="Tone" value="Softer close" />
           </div>
         </div>
-      </div>
+
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900/40">
+          <h2 className="text-base font-semibold tracking-tight">Coaching cues</h2>
+          <ul className="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-200">
+            {convo.analysis.coachingCues.map((cue) => (
+              <li key={cue} className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950/30">
+                {cue}
+              </li>
+            ))}
+          </ul>
+        </div>
+        
+        <DetailCard
+          title="Pronunciation"
+          body="This will later highlight phoneme-level issues, stress patterns, and example replays."
+          bullets={["Common mispronounced sounds", "Stress + rhythm patterns", "Targeted drills and audio examples"]}
+        />
+        <DetailCard
+          title="Fluency"
+          body="This will later measure pace, pauses, filler words, and turn-taking patterns."
+          bullets={["Pace + pausing", "Filler word frequency", "Turn-taking smoothness"]}
+        />
+        <DetailCard
+          title="Tone"
+          body="This will later evaluate intonation, politeness strategy, and confidence signals."
+          bullets={["Intonation patterns", "Directness vs softness", "Confidence markers (volume/hesitation)"]}
+        />
+      </section>
+
+      <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900/40">
+        <h2 className="text-base font-semibold tracking-tight">Optional real-time cues (placeholder)</h2>
+        <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-200">
+          In the live mode, WhisprAI will provide subtle cues for pronunciation and pacing with minimal disruption.
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <Cue label="Pacing" value="Hold 0.5s" />
+          <Cue label="Pronunciation" value="Try “th”" />
+          <Cue label="Tone" value="Softer close" />
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900/40">
+        <h2 className="text-base font-semibold tracking-tight">Coaching cues (placeholder)</h2>
+        <ul className="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-200">
+          {convo.analysis.coachingCues.map((cue) => (
+            <li key={cue} className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950/30">
+              {cue}
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }

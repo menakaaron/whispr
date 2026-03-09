@@ -33,7 +33,7 @@ export function UploadPanel() {
         <div>
           <h2 className="text-base font-semibold tracking-tight">Upload conversation recordings</h2>
           <p className="text-sm text-zinc-600 dark:text-zinc-300">
-            Add one or more audio files (m4a/mp3/wav). Analysis is placeholder text for now.
+            Add one or more audio files (m4a/mp3/wav).
           </p>
         </div>
         <button

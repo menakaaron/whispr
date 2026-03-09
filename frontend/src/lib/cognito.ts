@@ -55,6 +55,34 @@ export function signUp(params: SignUpParams): Promise<{ userSub: string }> {
   });
 }
 
+export function confirmSignUp(email: string, code: string): Promise<void> {
+  const user = getCognitoUser(email);
+
+  return new Promise((resolve, reject) => {
+    user.confirmRegistration(code, true, (err) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+export function resendConfirmationCode(email: string): Promise<void> {
+  const user = getCognitoUser(email);
+
+  return new Promise((resolve, reject) => {
+    user.resendConfirmationCode((err) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
 export function signIn(email: string, password: string): Promise<{ idToken: string; accessToken: string }> {
   const user = getCognitoUser(email);
   const authDetails = new AuthenticationDetails({

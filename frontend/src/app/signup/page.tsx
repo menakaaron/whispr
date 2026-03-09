@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import { useAuth } from "@/state/auth";
+import * as cognito from "@/lib/cognito";
 
 const LANGUAGES = ["English", "Spanish", "Mandarin", "French", "German", "Japanese", "Korean", "Other"];
 const PROFICIENCY_LEVELS = ["beginner", "intermediate", "advanced", "fluent"];
@@ -18,7 +19,7 @@ const LEARNING_GOALS = [
 
 export default function SignUpPage() {
   const router = useRouter();
-  const { signUp, error, clearError, loading } = useAuth();
+  const { signIn, error, clearError, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [nativeLanguage, setNativeLanguage] = useState("English");
@@ -26,6 +27,10 @@ export default function SignUpPage() {
   const [proficiencyLevel, setProficiencyLevel] = useState("beginner");
   const [learningGoals, setLearningGoals] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [signupParams, setSignupParams] = useState<cognito.SignUpParams | null>(null);
 
   const toggleGoal = (goal: string) => {
     setLearningGoals((prev) =>
@@ -38,22 +43,121 @@ export default function SignUpPage() {
     clearError();
     setSubmitting(true);
     try {
-      await signUp({
+      const params: cognito.SignUpParams = {
         email: email.trim(),
         password,
         nativeLanguage,
         targetLanguage,
         proficiencyLevel,
         learningGoals: learningGoals.length > 0 ? learningGoals : ["Improve pronunciation"],
-      });
-      router.push("/");
-      router.refresh();
-    } catch {
-      // error set in context
+      };
+      
+      await cognito.signUp(params);
+      setSignupParams(params);
+      setNeedsVerification(true);
+    } catch (err) {
+      setVerifyError(err instanceof Error ? err.message : "Sign up failed");
     } finally {
       setSubmitting(false);
     }
   };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setVerifyError(null);
+    setSubmitting(true);
+    try {
+      await cognito.confirmSignUp(email.trim(), verificationCode.trim());
+      
+      // Now sign in and create user profile
+      await signIn(email.trim(), password);
+      
+      if (signupParams) {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: signupParams.email,
+            nativeLanguage: signupParams.nativeLanguage,
+            targetLanguage: signupParams.targetLanguage,
+            proficiencyLevel: signupParams.proficiencyLevel,
+            learningGoals: signupParams.learningGoals,
+          }),
+        });
+      }
+      
+      router.push("/");
+      router.refresh();
+    } catch (err) {
+      setVerifyError(err instanceof Error ? err.message : "Verification failed");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setVerifyError(null);
+    try {
+      await cognito.resendConfirmationCode(email.trim());
+      setVerifyError("Code resent! Check your email.");
+    } catch (err) {
+      setVerifyError(err instanceof Error ? err.message : "Failed to resend code");
+    }
+  };
+
+  if (needsVerification) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-12">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/40">
+          <div className="mb-6 text-center">
+            <h1 className="text-2xl font-semibold tracking-tight">Verify your email</h1>
+            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+              We sent a verification code to {email}
+            </p>
+          </div>
+
+          <form onSubmit={handleVerify} className="space-y-4">
+            {verifyError && (
+              <div className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                {verifyError}
+              </div>
+            )}
+
+            <div>
+              <label htmlFor="verification-code" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                Verification code
+              </label>
+              <input
+                id="verification-code"
+                type="text"
+                required
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none ring-0 focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-950/30 dark:focus:border-zinc-600"
+                placeholder="Enter 6-digit code"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || submitting}
+              className="w-full rounded-xl bg-zinc-900 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-60 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+            >
+              {submitting ? "Verifying…" : "Verify email"}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleResendCode}
+              className="w-full text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+            >
+              Resend code
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-md px-4 py-12">
@@ -66,9 +170,9 @@ export default function SignUpPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
+          {verifyError && (
             <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800 dark:bg-red-950/40 dark:text-red-200">
-              {error}
+              {verifyError}
             </div>
           )}
 
