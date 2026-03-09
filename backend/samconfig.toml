@@ -6,3 +6,4 @@ region = "us-east-1"
 capabilities = "CAPABILITY_IAM"
 confirm_changeset = true
 resolve_s3 = true
+parameter_overrides = "OpenAIApiKey=\"${OPENAI_API_KEY}\""

@@ -186,7 +186,7 @@ export function ConversationsProvider({ children }: { children: React.ReactNode 
       loadAudioBlob,
       updateConversationAnalysis,
     }),
-    [addAudioFiles, conversations, getConversation, hydrated, loadAudioBlob, removeConversation, renameConversation, updateConversationAnalysis],
+    [addAudioFiles, conversations, getConversation, hydrated, loadAudioBlob, removeConversation, renameConversation],
   );
 
   return <ConversationsContext.Provider value={value}>{children}</ConversationsContext.Provider>;

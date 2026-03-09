@@ -1,6 +1,11 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Whispr backend Lambda functions
+Parameters:
+  OpenAIApiKey:
+    Type: String
+    NoEcho: true
+    Description: OpenAI API Key for Whisper transcription
 Globals:
   Function:
     Runtime: nodejs18.x
@@ -119,9 +124,18 @@ Resources:
     Properties:
       CodeUri: AnalyzeCultureFunction
       Handler: index.handler
+      Timeout: 60
+      MemorySize: 512
       Policies:
       - DynamoDBCrudPolicy:
           TableName: whispr-conversations
+      - Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action: bedrock:InvokeModel
+          Resource:
+          - arn:aws:bedrock:*:*:inference-profile/*
+          - arn:aws:bedrock:*::foundation-model/*
       Events:
         Api:
           Type: Api
@@ -173,7 +187,9 @@ Resources:
           Action: transcribe:StartTranscriptionJob
           Resource: '*'
         - Effect: Allow
-          Action: s3:GetObject
+          Action:
+          - s3:GetObject
+          - s3:PutObject
           Resource:
             Fn::Sub: arn:aws:s3:::whispr-audio-uploads/*
       Events:

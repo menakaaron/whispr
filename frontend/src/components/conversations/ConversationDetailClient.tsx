@@ -35,19 +35,47 @@ function mapBackendAnalysisToUI(
   analysis: Record<string, unknown>
 ): ConversationAnalysis {
   const norms = (analysis.socialNorms as string[] | undefined) ?? [];
-  const cuesRaw = (analysis.culturalCues as Array<{ phrase?: string; actualMeaning?: string; context?: string }> | undefined) ?? [];
-  const cues = cuesRaw.map(
-    (c) => [c.phrase, c.actualMeaning, c.context].filter(Boolean).join(": ")
-  );
-  const culturalSummary = [...norms, ...cues].join(". ") || "No cultural notes yet.";
+  const cuesRaw = (analysis.culturalCues as Array<{ phrase?: string; literalMeaning?: string; actualMeaning?: string; context?: string }> | undefined) ?? [];
+  
+  // Format cultural cues properly
+  const cuesFormatted = cuesRaw
+    .filter(c => c.phrase && c.phrase !== "N/A") // Filter out N/A entries
+    .map(c => {
+      const parts = [];
+      if (c.phrase) parts.push(`"${c.phrase}"`);
+      if (c.actualMeaning) parts.push(c.actualMeaning);
+      if (c.context) parts.push(`(${c.context})`);
+      return parts.join(" - ");
+    });
+  
+  // Combine norms and cues into a readable summary
+  const culturalParts = [];
+  if (norms.length > 0) {
+    culturalParts.push("Social norms: " + norms.join(" "));
+  }
+  if (cuesFormatted.length > 0) {
+    culturalParts.push("Cultural cues: " + cuesFormatted.join("; "));
+  }
+  
+  const culturalSummary = culturalParts.length > 0 
+    ? culturalParts.join("\n\n") 
+    : "No cultural analysis available yet. Please provide a Spanish conversation transcript.";
+  
   const suggestions = (analysis.suggestions as string[] | undefined) ?? [];
+  const fluencyNotes = (analysis.fluencyNotes as string[] | undefined) ?? [];
+  
+  // Create a clear summary from fluency notes
+  const summary = fluencyNotes.length > 0 
+    ? fluencyNotes.join(" ") 
+    : "Analysis complete. Review the cultural context and coaching suggestions below.";
+  
   return {
-    overallSummary: transcript || "AI analysis complete.",
+    overallSummary: summary,
     pronunciationScore: 70,
     fluencyScore: 70,
     toneScore: 70,
     culturalContextSummary: culturalSummary,
-    coachingCues: suggestions.length > 0 ? suggestions : ["Review the cultural context above."],
+    coachingCues: suggestions.length > 0 ? suggestions : ["Provide a Spanish conversation transcript for detailed coaching."],
   };
 }
 
@@ -195,53 +223,67 @@ export function ConversationDetailClient({ id }: { id: string }) {
               disabled={transcribing || analyzing || !audioUrl}
               onClick={async () => {
                 setAnalyzeError(null);
-                setTranscribeStatus("Loading audio…");
+                setTranscribeStatus("Transcribing with browser speech recognition…");
                 setTranscribing(true);
                 try {
+                  // Check if Web Speech API is available
+                  const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+                  if (!SpeechRecognition) {
+                    throw new Error("Speech recognition not supported in this browser. Try Chrome, Edge, or Safari.");
+                  }
+
                   const blob = await loadAudioBlob(convo.id);
                   if (!blob) throw new Error("Could not load recording");
-                  setTranscribeStatus("Getting upload URL…");
-                  const { uploadUrl, s3Key } = await getUploadUrl({
-                    userId: user!.sub,
-                    contentType: blob.type || "audio/mpeg",
+
+                  // Create audio element to play the recording
+                  const audio = new Audio(URL.createObjectURL(blob));
+                  
+                  // Set up speech recognition
+                  const recognition = new SpeechRecognition();
+                  recognition.continuous = true;
+                  recognition.interimResults = false;
+                  recognition.lang = 'en-US';
+
+                  let transcript = '';
+
+                  recognition.onresult = (event: any) => {
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                      if (event.results[i].isFinal) {
+                        transcript += event.results[i][0].transcript + ' ';
+                      }
+                    }
+                  };
+
+                  recognition.onerror = (event: any) => {
+                    throw new Error(`Speech recognition error: ${event.error}`);
+                  };
+
+                  // Start recognition and play audio
+                  recognition.start();
+                  await audio.play();
+
+                  // Wait for audio to finish
+                  await new Promise((resolve, reject) => {
+                    audio.onended = resolve;
+                    audio.onerror = reject;
                   });
-                  setTranscribeStatus("Uploading…");
-                  const putRes = await fetch(uploadUrl, {
-                    method: "PUT",
-                    body: blob,
-                    headers: { "Content-Type": blob.type || "audio/mpeg" },
-                  });
-                  if (!putRes.ok) throw new Error("Upload failed");
+
+                  // Give recognition a moment to process final words
+                  await new Promise(r => setTimeout(r, 1000));
+                  recognition.stop();
+
+                  if (!transcript.trim()) {
+                    throw new Error("No speech detected in the recording");
+                  }
+
                   setTranscribeStatus("Creating conversation…");
                   const { conversationId, createdAt } = await saveConversation({
                     userId: user!.sub,
-                    transcriptRaw: "pending",
-                    durationSeconds: 0,
+                    transcriptRaw: transcript.trim(),
+                    durationSeconds: Math.floor(audio.duration),
                     context: "general",
                   });
-                  const ext = convo.audio.originalFilename.split(".").pop()?.toLowerCase() || "mp3";
-                  const mediaFormat = ext === "m4a" || ext === "mp4" ? "mp4" : ext === "wav" ? "wav" : "mp3";
-                  setTranscribeStatus("Starting transcription…");
-                  await startTranscribe({
-                    s3Key,
-                    userId: user!.sub,
-                    conversationId,
-                    createdAt,
-                    mediaFormat,
-                  });
-                  setTranscribeStatus("Transcribing (this may take a minute)…");
-                  let transcript = "";
-                  for (let i = 0; i < 60; i++) {
-                    await new Promise((r) => setTimeout(r, 3000));
-                    const result = await getTranscribeResult(conversationId);
-                    if (result.status === "COMPLETED") {
-                      transcript = result.transcript;
-                      break;
-                    }
-                    if (result.status === "FAILED") throw new Error(result.error || "Transcription failed");
-                    if (result.status === "NOT_FOUND") throw new Error("Transcription job not found");
-                  }
-                  if (!transcript) throw new Error("Transcription timed out");
+
                   setTranscribeStatus("Running AI analysis…");
                   const profile = (await getUser(user!.sub).catch(() => ({}))) as {
                     nativeLanguage?: string;
@@ -251,13 +293,13 @@ export function ConversationDetailClient({ id }: { id: string }) {
                   const targetLanguage = profile.targetLanguage ?? "Spanish";
                   const { analysis } = await analyzeCulture({
                     conversationId,
-                    transcript,
+                    transcript: transcript.trim(),
                     nativeLanguage,
                     targetLanguage,
                     userId: user!.sub,
                     createdAt,
                   });
-                  const mapped = mapBackendAnalysisToUI(transcript, analysis as Record<string, unknown>);
+                  const mapped = mapBackendAnalysisToUI(transcript.trim(), analysis as Record<string, unknown>);
                   updateConversationAnalysis(convo.id, mapped);
                 } catch (err) {
                   setAnalyzeError(err instanceof Error ? err.message : "Transcribe or analysis failed");
@@ -295,12 +337,16 @@ export function ConversationDetailClient({ id }: { id: string }) {
                 const profile = await getUser(user!.sub).catch(() => ({})) as { nativeLanguage?: string; targetLanguage?: string };
                 const nativeLanguage = profile.nativeLanguage ?? "English";
                 const targetLanguage = profile.targetLanguage ?? "Spanish";
+                
+                // Save conversation to backend first
                 const { conversationId, createdAt } = await saveConversation({
                   userId: user!.sub,
                   transcriptRaw: transcriptDraft.trim(),
                   durationSeconds: 0,
-                  context: "general",
+                  context: "manual",
                 });
+                
+                // Then analyze it
                 const { analysis } = await analyzeCulture({
                   conversationId,
                   transcript: transcriptDraft.trim(),
@@ -311,6 +357,7 @@ export function ConversationDetailClient({ id }: { id: string }) {
                 });
                 const mapped = mapBackendAnalysisToUI(transcriptDraft.trim(), analysis as Record<string, unknown>);
                 updateConversationAnalysis(convo.id, mapped);
+                setTranscriptDraft(""); // Clear the textarea after successful analysis
               } catch (err) {
                 setAnalyzeError(err instanceof Error ? err.message : "Analysis failed");
               } finally {

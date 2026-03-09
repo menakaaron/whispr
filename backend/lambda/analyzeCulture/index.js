@@ -63,7 +63,7 @@ Respond in this exact JSON format with no extra text:
     console.log("CLEANED:", cleaned);
     const analysis = JSON.parse(cleaned);
 
-    // Save feedback to DynamoDB
+    // Save feedback to DynamoDB only after successful analysis
     await dynamo.send(new UpdateItemCommand({
       TableName: "whispr-conversations",
       Key: {
@@ -82,10 +82,11 @@ Respond in this exact JSON format with no extra text:
       body: JSON.stringify({ conversationId, analysis }),
     };
   } catch (error) {
+    console.error("ERROR in analyzeCulture:", error);
     return {
       statusCode: 500,
       headers: CORS_HEADERS,
-      body: JSON.stringify({ error: error.message }),
+      body: JSON.stringify({ error: error.message || "Analysis failed" }),
     };
   }
 };

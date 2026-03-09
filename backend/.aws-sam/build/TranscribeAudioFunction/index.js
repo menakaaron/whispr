@@ -15,6 +15,8 @@ exports.handler = async (event) => {
     const body = JSON.parse(event.body || "{}");
     const { s3Key, userId, conversationId, createdAt, languageCode } = body;
 
+    console.log("Received request:", { s3Key, userId, conversationId, languageCode });
+
     if (!s3Key || !userId || !conversationId) {
       return {
         statusCode: 400,
@@ -26,6 +28,8 @@ exports.handler = async (event) => {
     const jobName = `whispr-${conversationId}`;
     const s3Uri = `s3://whispr-audio-uploads/${s3Key}`;
 
+    console.log("Starting transcription job:", { jobName, s3Uri, mediaFormat: body.mediaFormat });
+
     await transcribe.send(new StartTranscriptionJobCommand({
       TranscriptionJobName: jobName,
       LanguageCode: languageCode || "en-US",
@@ -34,6 +38,8 @@ exports.handler = async (event) => {
       OutputBucketName: "whispr-audio-uploads",
       OutputKey: `transcripts/${conversationId}.json`,
     }));
+
+    console.log("Transcription job started successfully");
 
     return {
       statusCode: 200,
@@ -45,6 +51,7 @@ exports.handler = async (event) => {
       }),
     };
   } catch (error) {
+    console.error("Error starting transcription:", error);
     return {
       statusCode: 500,
       headers: CORS_HEADERS,
