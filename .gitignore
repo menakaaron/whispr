@@ -39,6 +39,14 @@ yarn-error.log*
 .env*
 .env
 
+# AWS SAM
+backend/.aws-sam/
+.aws-sam/
+
+# Lambda output files
+backend/lambda/*/output.json
+**/output.json
+
 # vercel
 .vercel
 
