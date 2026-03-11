@@ -47,7 +47,9 @@ export function DashboardClient() {
   }, [user?.sub]);
 
   const chartData = useMemo(() => {
-    const recent = [...conversations].slice(0, 12).reverse();
+    // Only include analyzed conversations (score > 0) in the chart
+    const analyzed = conversations.filter((c) => c.analysis.pronunciationScore > 0);
+    const recent = [...analyzed].slice(0, 12).reverse();
     return recent.map((c) => ({
       label: formatShortDate(c.createdAt),
       pronunciation: c.analysis.pronunciationScore,
@@ -58,11 +60,13 @@ export function DashboardClient() {
 
   const summary = useMemo(() => {
     const recent = conversations.slice(0, 8);
+    // Only include analyzed conversations (score > 0) in averages
+    const analyzed = recent.filter((c) => c.analysis.pronunciationScore > 0);
     return {
       count: conversations.length,
-      pronunciation: avg(recent.map((c) => c.analysis.pronunciationScore)),
-      fluency: avg(recent.map((c) => c.analysis.fluencyScore)),
-      tone: avg(recent.map((c) => c.analysis.toneScore)),
+      pronunciation: avg(analyzed.map((c) => c.analysis.pronunciationScore)),
+      fluency: avg(analyzed.map((c) => c.analysis.fluencyScore)),
+      tone: avg(analyzed.map((c) => c.analysis.toneScore)),
     };
   }, [conversations]);
 

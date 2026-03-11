@@ -26,17 +26,23 @@ exports.handler = async (event) => {
 
     const prompt = `You are a cultural language coach helping someone who speaks ${nativeLanguage} learn to communicate naturally in ${targetLanguage}.
 
-Analyze this conversation transcript and identify:
-1. Any phrases that have cultural or social meaning beyond their literal words
-2. Any social norms or unspoken rules demonstrated
-3. Any pronunciation or fluency patterns to note
-4. Specific actionable suggestions for improvement
+Analyze this conversation transcript and provide:
+1. Pronunciation score (0-100): Based on likely pronunciation patterns from the text
+2. Fluency score (0-100): Based on sentence structure, word choice, and natural flow
+3. Tone score (0-100): Based on formality, politeness, and appropriateness
+4. Cultural cues: Phrases with cultural meaning beyond literal translation
+5. Social norms: Unspoken rules demonstrated in the conversation
+6. Fluency notes: Specific observations about language use
+7. Actionable suggestions for improvement
 
 Transcript:
 "${transcript}"
 
 Respond in this exact JSON format with no extra text:
 {
+  "pronunciationScore": 75,
+  "fluencyScore": 80,
+  "toneScore": 85,
   "culturalCues": [
     {"phrase": "the phrase", "literalMeaning": "what it says", "actualMeaning": "what it really means", "context": "when to use it"}
   ],

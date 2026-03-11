@@ -60,23 +60,16 @@ function seededScore(seed: number, salt: number, min: number, max: number) {
 }
 
 function makePlaceholderAnalysis(id: string, filename: string): ConversationAnalysis {
-  const seed = hashStringToInt(id + "|" + filename);
-  const pronunciation = seededScore(seed, 1, 55, 92);
-  const fluency = seededScore(seed, 2, 50, 90);
-  const tone = seededScore(seed, 3, 58, 95);
-
   return {
     overallSummary:
-      "Placeholder analysis: upload + playback is wired up. This section will later summarize key pronunciation, fluency, tone, and cultural context insights from the conversation.",
-    pronunciationScore: pronunciation,
-    fluencyScore: fluency,
-    toneScore: tone,
+      "Click 'Analyze with AI' to get detailed pronunciation, fluency, tone, and cultural context insights from this conversation.",
+    pronunciationScore: 0,
+    fluencyScore: 0,
+    toneScore: 0,
     culturalContextSummary:
-      "Placeholder cultural context: identifies when phrases are functional vs literal and highlights hidden social norms to watch for.",
+      "Analysis pending. Click 'Analyze with AI' to identify cultural cues and social norms.",
     coachingCues: [
-      "Try a slightly slower pace on longer sentences.",
-      "Reduce filler words in transitions (e.g., 'um', 'like').",
-      "End statements with a clearer downward intonation when you mean certainty.",
+      "Upload your conversation and click 'Analyze with AI' to receive personalized coaching suggestions.",
     ],
   };
 }

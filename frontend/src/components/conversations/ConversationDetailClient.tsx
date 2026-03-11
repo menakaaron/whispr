@@ -73,9 +73,9 @@ function mapBackendAnalysisToUI(
   
   return {
     overallSummary: summary,
-    pronunciationScore: 70,
-    fluencyScore: 70,
-    toneScore: 70,
+    pronunciationScore: (analysis.pronunciationScore as number | undefined) ?? 70,
+    fluencyScore: (analysis.fluencyScore as number | undefined) ?? 70,
+    toneScore: (analysis.toneScore as number | undefined) ?? 70,
     culturalContextSummary: culturalSummary,
     coachingCues: suggestions.length > 0 ? suggestions : ["Provide a Spanish conversation transcript for detailed coaching."],
   };
@@ -396,7 +396,7 @@ export function ConversationDetailClient({ id }: { id: string }) {
                 className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950/30"
               >
                 <div className="text-[11px] font-medium text-zinc-600 dark:text-zinc-400">{s.label}</div>
-                <div className="mt-0.5 text-sm font-semibold">{s.value}</div>
+                <div className="mt-0.5 text-sm font-semibold">{s.value === 0 ? "—" : s.value}</div>
               </div>
             ))}
           </div>

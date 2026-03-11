@@ -177,7 +177,7 @@ export default function SettingsPage() {
       </section>
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900/40">
-        <div className="text-base font-semibold tracking-tight">Preferences (placeholder)</div>
+        <div className="text-base font-semibold tracking-tight">Preferences</div>
         <div className="mt-4 grid gap-3">
           <SettingRow title="Real-time cues" value="Off (MVP)" />
           <SettingRow title="Data storage" value="Local + backend when signed in" />
