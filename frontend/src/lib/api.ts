@@ -7,6 +7,7 @@ import { api } from "./apiClient";
 // ── Users ──────────────────────────────────────────────────────────────────
 
 export async function createUser(data: {
+  userId?: string;
   email: string;
   nativeLanguage: string;
   targetLanguage: string;

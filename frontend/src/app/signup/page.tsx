@@ -69,20 +69,27 @@ export default function SignUpPage() {
     try {
       await cognito.confirmSignUp(email.trim(), verificationCode.trim());
       
-      // Now sign in and create user profile
+      // Sign in first to get JWT token
       await signIn(email.trim(), password);
       
-      if (signupParams) {
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: signupParams.email,
-            nativeLanguage: signupParams.nativeLanguage,
-            targetLanguage: signupParams.targetLanguage,
-            proficiencyLevel: signupParams.proficiencyLevel,
-            learningGoals: signupParams.learningGoals,
-          }),
+      // Wait a bit for auth state to update
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Get the current user's sub from Cognito session
+      const session = await cognito.getSession();
+      const payload = JSON.parse(atob(session.idToken.split(".")[1]));
+      const userId = payload.sub;
+      
+      // Create user profile with userId
+      if (signupParams && userId) {
+        const { createUser } = await import("@/lib/api");
+        await createUser({
+          userId,
+          email: signupParams.email,
+          nativeLanguage: signupParams.nativeLanguage,
+          targetLanguage: signupParams.targetLanguage,
+          proficiencyLevel: signupParams.proficiencyLevel,
+          learningGoals: signupParams.learningGoals,
         });
       }
       

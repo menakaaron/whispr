@@ -1,12 +1,23 @@
 const { DynamoDBClient, PutItemCommand } = require("@aws-sdk/client-dynamodb");
-const { randomUUID } = require("crypto");
 
 const client = new DynamoDBClient({ region: "us-east-1" });
 
 exports.handler = async (event) => {
   try {
     const body = JSON.parse(event.body);
-    const userId = randomUUID();
+    
+    // Get userId from Cognito JWT (if authenticated) or use provided userId
+    let userId = body.userId;
+    if (!userId && event.requestContext?.authorizer?.claims?.sub) {
+      userId = event.requestContext.authorizer.claims.sub;
+    }
+    if (!userId) {
+      return {
+        statusCode: 400,
+        headers: { "Content-Type": "application/json","Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type,Authorization","Access-Control-Allow-Methods":"GET,POST,OPTIONS" },
+        body: JSON.stringify({ error: "userId is required" }),
+      };
+    }
 
     const item = {
       PK: { S: `USER#${userId}` },
@@ -34,6 +45,7 @@ exports.handler = async (event) => {
   } catch (error) {
     return {
       statusCode: 500,
+      headers: { "Content-Type": "application/json","Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type,Authorization","Access-Control-Allow-Methods":"GET,POST,OPTIONS" },
       body: JSON.stringify({ error: error.message }),
     };
   }
