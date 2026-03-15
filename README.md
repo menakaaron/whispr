@@ -2,6 +2,8 @@
 
 WhisprAI turns everyday conversations into a personalized coach for **language and culture**, building confidence in authentic cross-cultural interactions.
 
+https://builder.aws.com/content/3AgGjGFwvBL1ue7Or1UK9DZJ7LC/aideas-whisprai
+
 ## MVP (frontend-only)
 
 For now, the app focuses on a simple flow:
