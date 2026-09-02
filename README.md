@@ -4,6 +4,8 @@ WhisprAI turns everyday conversations into a personalized coach for **language a
 
 https://builder.aws.com/content/3AgGjGFwvBL1ue7Or1UK9DZJ7LC/aideas-whisprai
 
+Demo Video: https://canva.link/c6nuqkjzr4y0irc
+
 ## MVP (frontend-only)
 
 For now, the app focuses on a simple flow:
